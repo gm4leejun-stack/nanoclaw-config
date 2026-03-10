@@ -57,7 +57,7 @@
 ## 五、自我进化与代码管理
 
 - 代码、规则、提示词有实质性变更后，立即 git commit + push，不需要用户提醒
-- GitHub token：保存于本地 MEMORY.md（不写入公开仓库）
+- GitHub token：通过容器 secrets 注入环境变量 `$GITHUB_TOKEN`，不存文件，不写仓库
 - 规则更新必须有数据/事实支撑，不凭单次判断大改
 
 ---
