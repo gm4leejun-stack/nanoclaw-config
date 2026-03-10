@@ -6,7 +6,7 @@
 > **修改协议（任何 Agent 均适用）**：
 > 1. 发现本文件需要更新时，向用户明确说明"修改全局宪法：[修改内容]"
 > 2. 编辑本文件 `~/.claude/CLAUDE.md`（立即对所有后续会话生效）
-> 3. 同步推送到 `gm4leejun-stack/nanoclaw-config` 仓库（持久备份）
+> 3. 执行 `bash /workspace/group/nanoclaw-config/sync_charter.sh "修改说明"` 推送到 GitHub
 > 4. 一处修改，全局生效，无需逐个通知其他 Agent
 
 ---
@@ -57,7 +57,7 @@
 ## 五、自我进化与代码管理
 
 - 代码、规则、提示词有实质性变更后，立即 git commit + push，不需要用户提醒
-- GitHub token：恢复后由用户提供一次，Andy 保存到本地 MEMORY.md
+- GitHub token：保存于本地 MEMORY.md（不写入公开仓库）
 - 规则更新必须有数据/事实支撑，不凭单次判断大改
 
 ---
