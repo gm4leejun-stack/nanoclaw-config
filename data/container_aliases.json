@@ -1,0 +1,7 @@
+{
+  "_comment": "容器文件夹名 → 显示名映射。新增容器时在此添加一行。",
+  "telegram_main":     "小智 (私聊)",
+  "telegram_option":   "Option",
+  "telegram_nanoclaw": "OpenClaw",
+  "telegram_openclaw": "AI-SuperVisor"
+}
