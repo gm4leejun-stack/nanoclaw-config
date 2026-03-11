@@ -75,8 +75,9 @@ def usd(i,o): return i*3/1e6 + o*15/1e6
 # ── 动态宽度代码块生成器 ───────────────────────────────────────────
 SEP = object()  # 分隔符标记
 
-def make_block(rows):
-    """rows: list of tuples 或 SEP 分隔符，自动对齐"""
+def make_table(rows):
+    """rows: list of tuples 或 SEP 分隔符
+    分隔线用纯文本，数据行用行内等宽反引号，列宽动态对齐"""
     if not rows: return ""
     data_rows = [r for r in rows if r is not SEP]
     if not data_rows: return ""
@@ -95,8 +96,8 @@ def make_block(rows):
             for i in range(1, col_count):
                 cell = str(row[i]) if i < len(row) else ''
                 parts.append(lpad(cell, widths[i]))
-            lines.append(' | '.join(parts))
-    return "```\n" + "\n".join(lines) + "\n```"
+            lines.append('`' + ' | '.join(parts) + '`')
+    return "\n".join(lines)
 
 # ── 组装输出 ───────────────────────────────────────────────────────
 out = []
@@ -105,7 +106,7 @@ out.append(f"📅 {now.strftime('%m/%d  %H:%M')} (UTC+8)\n")
 
 # 时段统计
 out.append("⏱ *时段统计*")
-out.append(make_block([
+out.append(make_table([
     SEP,
     ('今日',   M(gi+go), f'${usd(gi,go):.2f}', f'{gq}次'),
     ('本周',   M(wi+wo), f'${usd(wi,wo):.2f}', f'{wq}次'),
@@ -113,12 +114,13 @@ out.append(make_block([
     SEP,
 ]))
 
-# 本周输入/输出
-ip = wi/max(wi+wo,1)*100
-out.append("\n📤 *本周输入/输出*")
-out.append(make_block([
-    ('├ 输入', M(wi), f'{ip:.0f}%'),
-    ('└ 输出', M(wo), f'{100-ip:.0f}%'),
+# 近30天输入/输出（含金额）
+ip = mi/max(mi+mo,1)*100
+ic = mi*3/1e6; oc = mo*15/1e6
+out.append("\n📤 *输入/输出（近30天）*")
+out.append(make_table([
+    ('├ 输入', M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
+    ('└ 输出', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
 ]))
 
 # 各群组近30天
@@ -129,6 +131,6 @@ for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]
     group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', f'{q}次'))
 group_rows.append(SEP)
 group_rows.append(('总计', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'))
-out.append(make_block(group_rows))
+out.append(make_table(group_rows))
 
 print("\n".join(out))
