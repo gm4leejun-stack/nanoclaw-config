@@ -1,6 +1,6 @@
 {
   "_comment": "容器文件夹名 → 显示名映射。名字建议不超过9个显示宽度。",
-  "telegram_main":     "Main",
+  "telegram_main":     "小智",
   "telegram_option":   "Option",
   "telegram_nanoclaw": "OpenClaw",
   "telegram_openclaw": "AI-Super"
