@@ -118,8 +118,8 @@ ip = mi/max(mi+mo,1)*100
 ic = mi*3/1e6; oc = mo*15/1e6
 out.append("📤 *输入/输出（近30天）*")
 out.append(make_table([
-    ('├ 输入', M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
-    ('└ 输出', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
+    ('输入', M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
+    ('输出', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
 ]))
 
 # 各群组近30天
