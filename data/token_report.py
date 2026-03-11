@@ -96,7 +96,7 @@ def make_table(rows):
                 cell = str(row[i]) if i < len(row) else ''
                 parts.append(lpad(cell, widths[i]))
             lines.append(' | '.join(parts))
-    return "\n".join(lines)
+    return "```\n" + "\n".join(lines) + "\n```"
 
 # ── 组装输出 ───────────────────────────────────────────────────────
 out = []
@@ -116,14 +116,14 @@ out.append(make_table([
 # 近30天输入/输出（含金额）
 ip = mi/max(mi+mo,1)*100
 ic = mi*3/1e6; oc = mo*15/1e6
-out.append("\n📤 *输入/输出（近30天）*")
+out.append("📤 *输入/输出（近30天）*")
 out.append(make_table([
     ('├ 输入', M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
     ('└ 输出', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
 ]))
 
 # 各群组近30天
-out.append("\n🤖 *各群组（近30天）*")
+out.append("🤖 *各群组（近30天）*")
 group_rows = [SEP]
 for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]+x[1][1])):
     pct = (ti+to)/max(mi+mo,1)*100
