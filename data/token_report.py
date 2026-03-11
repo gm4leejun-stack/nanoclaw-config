@@ -7,10 +7,10 @@ today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 week_start  = today_start - timedelta(days=today_start.weekday())
 month_start = today_start - timedelta(days=29)
 
-# Telegram 代码块 CJK 渲染宽度=1，用 len() 对齐
-def dw(s): return len(s)
-def rpad(s, w): return s + ' ' * max(0, w - len(s))
-def lpad(s, w): return ' ' * max(0, w - len(s)) + s
+import unicodedata
+def dw(s): return sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 1 for c in s)
+def rpad(s, w): return s + ' ' * max(0, w - dw(s))
+def lpad(s, w): return ' ' * max(0, w - dw(s)) + s
 
 # ── 容器显示名映射 ─────────────────────────────────────────────────
 ALIASES_FILE = os.path.join(os.path.dirname(__file__), "container_aliases.json")
@@ -118,10 +118,12 @@ body.append('⏱ 时段统计')
 body += fmt_rows(period_rows, pg_widths)
 body.append(sep)
 body.append('📤 输入/输出 近30天')
-body.append(f'输入  {M(mi)}  {ip:.0f}%')
-body.append(f'      ${ic:.2f}')
-body.append(f'输出  {M(mo)}  {100-ip:.0f}%')
-body.append(f'      ${oc:.2f}')
+amt_w = max(dw(M(mi)), dw(M(mo)), dw(f'${ic:.2f}'), dw(f'${oc:.2f}'))
+pct_w = max(dw(f'{ip:.0f}%'), dw(f'{100-ip:.0f}%'))
+def iorow(l1, a1, p1, l2, a2, p2):
+    return f'{l1}  {lpad(a1,amt_w)}  {rpad(p1,pct_w)} | {l2}  {lpad(a2,amt_w)}  {p2}'
+body.append(iorow('输入', M(mi), f'{ip:.0f}%', '输出', M(mo), f'{100-ip:.0f}%'))
+body.append(iorow('输入', f'${ic:.2f}', f'{ip:.0f}%', '输出', f'${oc:.2f}', f'{100-ip:.0f}%'))
 body.append(sep)
 body.append('🤖 各群组 近30天')
 body += fmt_rows(group_rows, pg_widths)
