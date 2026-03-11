@@ -27,6 +27,24 @@ cp "$REPO_DIR/data/token_report.py" "$DATA_DIR/token_report.py"
 cp "$REPO_DIR/data/container_aliases.json" "$DATA_DIR/container_aliases.json"
 echo "✅ token 统计脚本 → $DATA_DIR/"
 
+# 4. 应用 agent-runner SQLite 补丁
+AGENT_RUNNER_DIR="/workspace/project/container/agent-runner"
+PATCH_FILE="$REPO_DIR/patches/agent-runner-sqlite.patch"
+
+if [ -d "$AGENT_RUNNER_DIR" ]; then
+    cd "$AGENT_RUNNER_DIR"
+    if patch --dry-run -p1 < "$PATCH_FILE" > /dev/null 2>&1; then
+        patch -p1 < "$PATCH_FILE"
+        npm run build
+        echo "✅ agent-runner SQLite 补丁已应用并编译"
+    else
+        echo "⚠️  SQLite 补丁已应用（或已是最新版），跳过"
+    fi
+    cd "$REPO_DIR"
+else
+    echo "⚠️  未找到 agent-runner 目录，跳过 SQLite 补丁"
+fi
+
 echo ""
 echo "🎉 恢复完成！"
 echo ""

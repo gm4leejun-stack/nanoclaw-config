@@ -1,0 +1,51 @@
+--- a/container/agent-runner/src/index.ts
++++ b/container/agent-runner/src/index.ts
+@@ -504,25 +504,33 @@
+-      // Append usage to per-group and shared usage files
++      // Append usage to SQLite (shared) + per-group JSONL (legacy compat)
+       const inTokens = res.usage?.input_tokens ?? 0;
+       const outTokens = res.usage?.output_tokens ?? 0;
+       if (inTokens > 0 || outTokens > 0) {
+         try {
+-          const entry = JSON.stringify({
+-            ts: new Date().toISOString(),
+-            in: inTokens,
+-            out: outTokens,
+-            total: inTokens + outTokens,
+-          }) + '\n';
+-          // Per-group file
+-          fs.mkdirSync('/workspace/group/data', { recursive: true });
+-          fs.appendFileSync('/workspace/group/data/usage.json', entry);
+-          // Shared file keyed by group folder
+-          const sharedUsageDir = '/workspace/shared/usage';
++          const ts = new Date().toISOString();
++          const container = containerInput.groupFolder;
++          const sharedUsageDir = '/workspace/shared/usage';
+           fs.mkdirSync(sharedUsageDir, { recursive: true });
+-          fs.appendFileSync(
+-            path.join(sharedUsageDir, `${containerInput.groupFolder}.json`),
+-            entry,
+-          );
++          // Write to SQLite
++          const { DatabaseSync } = await import('node:sqlite');
++          const db = new DatabaseSync(path.join(sharedUsageDir, 'usage.db'));
++          db.exec(`CREATE TABLE IF NOT EXISTS usage (
++            id INTEGER PRIMARY KEY AUTOINCREMENT,
++            ts TEXT NOT NULL,
++            container TEXT NOT NULL,
++            input_tokens INTEGER NOT NULL,
++            output_tokens INTEGER NOT NULL
++          )`);
++          db.exec('CREATE INDEX IF NOT EXISTS idx_ts ON usage(ts)');
++          db.exec('CREATE INDEX IF NOT EXISTS idx_container ON usage(container)');
++          db.prepare('INSERT INTO usage (ts, container, input_tokens, output_tokens) VALUES (?,?,?,?)')
++            .run(ts, container, inTokens, outTokens);
++          db.close();
++          // Legacy JSONL (backward compat)
++          const entry = JSON.stringify({ ts, in: inTokens, out: outTokens, total: inTokens + outTokens }) + '\n';
++          fs.appendFileSync(path.join(sharedUsageDir, `${container}.json`), entry);
++          fs.mkdirSync('/workspace/group/data', { recursive: true });
++          fs.appendFileSync('/workspace/group/data/usage.json', entry);
+         } catch (err) {
+           log(`Failed to write usage: ${err instanceof Error ? err.message : String(err)}`);
+         }
