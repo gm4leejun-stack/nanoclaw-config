@@ -106,11 +106,9 @@ out.append(f"📅 {now.strftime('%m/%d  %H:%M')} (UTC+8)\n")
 # 时段统计
 out.append("⏱ *时段统计*")
 out.append(make_table([
-    SEP,
     ('今日',   M(gi+go), f'${usd(gi,go):.2f}', f'{gq}次'),
     ('本周',   M(wi+wo), f'${usd(wi,wo):.2f}', f'{wq}次'),
     ('近30天', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'),
-    SEP,
 ]))
 
 # 近30天输入/输出（含金额）
@@ -124,11 +122,10 @@ out.append(make_table([
 
 # 各群组近30天
 out.append("🤖 *各群组（近30天）*")
-group_rows = [SEP]
+group_rows = []
 for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]+x[1][1])):
     pct = (ti+to)/max(mi+mo,1)*100
     group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', f'{q}次'))
-group_rows.append(SEP)
 group_rows.append(('总计', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'))
 out.append(make_table(group_rows))
 
