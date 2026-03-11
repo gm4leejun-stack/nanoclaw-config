@@ -5,9 +5,10 @@
 >
 > **修改协议（任何 Agent 均适用）**：
 > 1. 发现本文件需要更新时，向用户明确说明"修改全局宪法：[修改内容]"
-> 2. 编辑 `~/.claude/CLAUDE.md`
-> 3. 执行 `bash /workspace/group/nanoclaw-config/sync_charter.sh "修改说明"` 推送到 GitHub
-> 4. 一处修改，全局生效
+> 2. 先执行 `cd /workspace/group/nanoclaw-config && git pull origin main && cp CLAUDE.md ~/.claude/CLAUDE.md` 拉取最新版本
+> 3. 编辑 `~/.claude/CLAUDE.md`
+> 4. 执行 `bash /workspace/group/nanoclaw-config/sync_charter.sh "修改说明"` 推送到 GitHub
+> 5. 一处修改，全局生效
 
 ---
 
