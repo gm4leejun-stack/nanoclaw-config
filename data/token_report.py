@@ -76,8 +76,7 @@ def usd(i,o): return i*3/1e6 + o*15/1e6
 SEP = object()  # 分隔符标记
 
 def make_table(rows):
-    """rows: list of tuples 或 SEP 分隔符
-    分隔线用纯文本，数据行用行内等宽反引号，列宽动态对齐"""
+    """rows: list of tuples 或 SEP 分隔符，整体一个代码块保证对齐"""
     if not rows: return ""
     data_rows = [r for r in rows if r is not SEP]
     if not data_rows: return ""
@@ -96,8 +95,8 @@ def make_table(rows):
             for i in range(1, col_count):
                 cell = str(row[i]) if i < len(row) else ''
                 parts.append(lpad(cell, widths[i]))
-            lines.append('`' + ' | '.join(parts) + '`')
-    return "\n".join(lines)
+            lines.append(' | '.join(parts))
+    return "```\n" + "\n".join(lines) + "\n```"
 
 # ── 组装输出 ───────────────────────────────────────────────────────
 out = []
