@@ -96,7 +96,7 @@ def make_table(rows):
                 cell = str(row[i]) if i < len(row) else ''
                 parts.append(lpad(cell, widths[i]))
             lines.append(' | '.join(parts))
-    return "```\n" + "\n".join(lines) + "\n```"
+    return "\n".join(lines)
 
 # ── 组装输出 ───────────────────────────────────────────────────────
 out = []
