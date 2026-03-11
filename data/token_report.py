@@ -8,8 +8,6 @@ week_start  = today_start - timedelta(days=today_start.weekday())
 month_start = today_start - timedelta(days=29)
 
 # ── 1. 读取容器显示名映射 ──────────────────────────────────────────
-# 配置文件在 nanoclaw-config/data/container_aliases.json
-# restore.sh 会将其复制到 /workspace/group/data/
 ALIASES_FILE = os.path.join(os.path.dirname(__file__), "container_aliases.json")
 try:
     display_map = {k: v for k, v in json.load(open(ALIASES_FILE)).items()
@@ -20,65 +18,45 @@ except:
 def display_name(container):
     if container in display_map:
         return display_map[container]
-    # fallback：去掉 telegram_ 前缀
     return container.replace("telegram_", "").replace("_", "-")
 
-# ── 2. 同步 JSONL → SQLite ─────────────────────────────────────────
-usage_dir = "/workspace/shared/usage"
-db_path   = os.path.join(usage_dir, "usage.db")
+# ── 2. 确保 SQLite 表结构正确（兼容旧列名迁移）────────────────────
+db_path = "/workspace/shared/usage/usage.db"
 
-def sync_to_sqlite():
+def ensure_db():
     con = sqlite3.connect(db_path)
-    con.execute("""CREATE TABLE IF NOT EXISTS usage (
-        id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        ts        TEXT NOT NULL,
-        container TEXT NOT NULL,
-        input     INTEGER NOT NULL,
-        output    INTEGER NOT NULL
-    )""")
-    con.execute("CREATE INDEX IF NOT EXISTS idx_ts ON usage(ts)")
-    con.execute("CREATE INDEX IF NOT EXISTS idx_container ON usage(container)")
-
-    # 读取每个容器已同步的最新时间戳
-    synced = {r[0]: r[1] for r in con.execute(
-        "SELECT container, MAX(ts) FROM usage GROUP BY container")}
-
-    new_rows = []
-    for fname in os.listdir(usage_dir):
-        if not fname.endswith(".json") or fname == "usage.db": continue
-        container = fname[:-5]
-        last_ts   = synced.get(container, "")
-        with open(os.path.join(usage_dir, fname)) as f:
-            for line in f:
-                line = line.strip()
-                if not line: continue
-                try:
-                    d = json.loads(line)
-                    ts = d.get("ts", "")
-                    if ts > last_ts:
-                        new_rows.append((ts, container, d.get("in", 0), d.get("out", 0)))
-                except:
-                    pass
-
-    if new_rows:
-        con.executemany(
-            "INSERT INTO usage (ts, container, input, output) VALUES (?,?,?,?)",
-            new_rows)
+    # 检查列名，旧表用 input/output，新表用 input_tokens/output_tokens
+    cols = [r[1] for r in con.execute("PRAGMA table_info(usage)").fetchall()]
+    if not cols:
+        # 全新建表
+        con.execute("""CREATE TABLE usage (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts            TEXT NOT NULL,
+            container     TEXT NOT NULL,
+            input_tokens  INTEGER NOT NULL,
+            output_tokens INTEGER NOT NULL
+        )""")
+        con.execute("CREATE INDEX idx_ts        ON usage(ts)")
+        con.execute("CREATE INDEX idx_container ON usage(container)")
+        con.commit()
+    elif "input" in cols and "input_tokens" not in cols:
+        # 迁移旧表：重命名列
+        con.execute("ALTER TABLE usage RENAME COLUMN input  TO input_tokens")
+        con.execute("ALTER TABLE usage RENAME COLUMN output TO output_tokens")
         con.commit()
     con.close()
 
-sync_to_sqlite()
+ensure_db()
 
 # ── 3. 查询统计 ────────────────────────────────────────────────────
 def query_period(since_ts):
     con = sqlite3.connect(db_path)
     rows = con.execute("""
         SELECT container,
-               SUM(input)  AS i,
-               SUM(output) AS o,
-               COUNT(*)    AS q
-        FROM usage
-        WHERE ts >= ?
+               SUM(input_tokens)  AS i,
+               SUM(output_tokens) AS o,
+               COUNT(*)           AS q
+        FROM usage WHERE ts >= ?
         GROUP BY container
     """, (since_ts.isoformat(),)).fetchall()
     con.close()
@@ -128,7 +106,6 @@ period_row("🗓", "近30天", mi, mo, mq)
 GROUP_COLORS = ['🟦','🟧','🟩','🟥','🟨','🟪']
 month_total = max(mi+mo, 1)
 
-# 所有已知容器（有数据的 + 已注册未使用的）
 try:
     all_registered = [g["name"] for g in
         json.load(open("/workspace/ipc/available_groups.json"))["groups"]
