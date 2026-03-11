@@ -100,32 +100,32 @@ ip = mi/max(mi+mo,1)*100
 ic = mi*3/1e6; oc = mo*15/1e6
 
 period_rows = [
-    ('今日',   M(gi+go), f'${usd(gi,go):.2f}', f'{gq}次'),
-    ('本周',   M(wi+wo), f'${usd(wi,wo):.2f}', f'{wq}次'),
-    ('近30天', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'),
+    ('Today', M(gi+go), f'${usd(gi,go):.2f}', f'{gq}x'),
+    ('Week',  M(wi+wo), f'${usd(wi,wo):.2f}', f'{wq}x'),
+    ('30d',   M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}x'),
 ]
 io_rows = [
-    ('输入', M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
-    ('输出', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
+    ('Input',  M(mi), f'${ic:.2f}', f'{ip:.0f}%'),
+    ('Output', M(mo), f'${oc:.2f}', f'{100-ip:.0f}%'),
 ]
 group_rows = []
 for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]+x[1][1])):
     pct = (ti+to)/max(mi+mo,1)*100
-    group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', f'{q}次'))
-group_rows.append(('总计', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'))
+    group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', f'{q}x'))
+group_rows.append(('Total', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}x'))
 
 # 三段统一计算列宽，保证 | 全局对齐
 widths = calc_widths(period_rows, io_rows, group_rows)
 sep = '-' * (sum(widths) + 3 * (len(widths) - 1))
 
 body = []
-body.append('⏱ 时段统计')
+body.append('[Period]')
 body += fmt_rows(period_rows, widths)
 body.append(sep)
-body.append('📤 输入/输出 近30天')
+body.append('[Input/Output 30d]')
 body += fmt_rows(io_rows, widths)
 body.append(sep)
-body.append('🤖 各群组 近30天')
+body.append('[Groups 30d]')
 body += fmt_rows(group_rows, widths)
 
 print(f"📊 *Token 消耗报告*")
