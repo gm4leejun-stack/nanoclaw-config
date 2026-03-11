@@ -7,7 +7,6 @@ today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 week_start  = today_start - timedelta(days=today_start.weekday())
 month_start = today_start - timedelta(days=29)
 
-import unicodedata
 def dw(s): return sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 1 for c in s)
 def rpad(s, w): return s + ' ' * max(0, w - dw(s))
 def lpad(s, w): return ' ' * max(0, w - dw(s)) + s
@@ -108,7 +107,7 @@ group_rows = []
 for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]+x[1][1])):
     pct = (ti+to)/max(mi+mo,1)*100
     group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', f'{q}次'))
-group_rows.append(('总计', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'))
+group_rows.append(('Total', M(mi+mo), f'${usd(mi,mo):.2f}', f'{mq}次'))
 
 pg_widths = calc_widths(period_rows, group_rows)
 sep = '-' * (sum(pg_widths) + 3*(len(pg_widths)-1))
