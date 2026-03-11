@@ -1,4 +1,4 @@
-import json, os, sqlite3
+import json, os, sqlite3, unicodedata
 from datetime import datetime, timezone, timedelta
 
 tz_beijing = timezone(timedelta(hours=8))
@@ -7,7 +7,22 @@ today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 week_start  = today_start - timedelta(days=today_start.weekday())
 month_start = today_start - timedelta(days=29)
 
-# ── 1. 读取容器显示名映射 ──────────────────────────────────────────
+# ── 显示宽度工具（CJK字符=2，其他=1）─────────────────────────────
+def dw(s):
+    return sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 1 for c in s)
+
+def trunc(s, w):
+    out, cur = '', 0
+    for c in s:
+        cw = 2 if unicodedata.east_asian_width(c) in ('W','F') else 1
+        if cur + cw > w: return out + '…'
+        out += c; cur += cw
+    return out
+
+def rpad(s, w): return s + ' ' * max(0, w - dw(s))
+def lpad(s, w): return ' ' * max(0, w - dw(s)) + s
+
+# ── 容器显示名映射 ─────────────────────────────────────────────────
 ALIASES_FILE = os.path.join(os.path.dirname(__file__), "container_aliases.json")
 try:
     display_map = {k: v for k, v in json.load(open(ALIASES_FILE)).items()
@@ -20,27 +35,22 @@ def display_name(container):
         return display_map[container]
     return container.replace("telegram_", "").replace("_", "-")
 
-# ── 2. 确保 SQLite 表结构正确（兼容旧列名迁移）────────────────────
+# ── 确保 SQLite 表结构（兼容旧列名迁移）───────────────────────────
 db_path = "/workspace/shared/usage/usage.db"
 
 def ensure_db():
     con = sqlite3.connect(db_path)
-    # 检查列名，旧表用 input/output，新表用 input_tokens/output_tokens
     cols = [r[1] for r in con.execute("PRAGMA table_info(usage)").fetchall()]
     if not cols:
-        # 全新建表
         con.execute("""CREATE TABLE usage (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts            TEXT NOT NULL,
-            container     TEXT NOT NULL,
-            input_tokens  INTEGER NOT NULL,
-            output_tokens INTEGER NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL, container TEXT NOT NULL,
+            input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL
         )""")
-        con.execute("CREATE INDEX idx_ts        ON usage(ts)")
+        con.execute("CREATE INDEX idx_ts ON usage(ts)")
         con.execute("CREATE INDEX idx_container ON usage(container)")
         con.commit()
     elif "input" in cols and "input_tokens" not in cols:
-        # 迁移旧表：重命名列
         con.execute("ALTER TABLE usage RENAME COLUMN input  TO input_tokens")
         con.execute("ALTER TABLE usage RENAME COLUMN output TO output_tokens")
         con.commit()
@@ -48,16 +58,12 @@ def ensure_db():
 
 ensure_db()
 
-# ── 3. 查询统计 ────────────────────────────────────────────────────
+# ── 查询统计 ───────────────────────────────────────────────────────
 def query_period(since_ts):
     con = sqlite3.connect(db_path)
     rows = con.execute("""
-        SELECT container,
-               SUM(input_tokens)  AS i,
-               SUM(output_tokens) AS o,
-               COUNT(*)           AS q
-        FROM usage WHERE ts >= ?
-        GROUP BY container
+        SELECT container, SUM(input_tokens), SUM(output_tokens), COUNT(*)
+        FROM usage WHERE ts >= ? GROUP BY container
     """, (since_ts.isoformat(),)).fetchall()
     con.close()
     return {r[0]: (r[1], r[2], r[3]) for r in rows}
@@ -76,36 +82,41 @@ gi,go,gq = psum(data_today)
 wi,wo,wq = psum(data_week)
 mi,mo,mq = psum(data_month)
 
-# ── 4. 格式化输出 ──────────────────────────────────────────────────
+# ── 卡片格式化 ─────────────────────────────────────────────────────
 def M(n): return f"{n/1e6:.3f}M"
 def usd(i,o): return i*3/1e6 + o*15/1e6
-def cny(i,o): return usd(i,o) * 7.2
 
-def color_split_bar(i, o, w=6):
-    t = max(i+o, 1)
-    fi = round(i/t*w)
-    return '🟦'*fi + '🟧'*(w-fi)
+L, T, C, N = 9, 8, 7, 4   # 列宽: name, total, cost, count
+IW = L + T + C + N + 1     # 内容宽度=29
 
-L = []
-L.append(f"📊 *Token 消耗报告*  _{now.strftime('%m/%d  %H:%M')}_")
+def border(l='├', r='┤'):
+    return l + '─' * IW + r
 
-def period_row(icon, label, i, o, q):
-    ip = i/max(i+o,1)*100; op = 100-ip
-    ic = i*3/1e6; oc = o*15/1e6; tc = max(ic+oc,1e-9)
-    icp = ic/tc*100
-    L.append(f"{icon} *{label}*   {M(i+o)}  ${usd(i,o):.2f}  ¥{cny(i,o):.1f}  {q}次")
-    L.append(f"量 ↑{ip:.0f}% {color_split_bar(i,o)} ↓{op:.0f}%")
-    L.append(f"价 ↑{icp:.0f}% {color_split_bar(int(ic*1e6),int(oc*1e6))} ↓{100-icp:.0f}%")
-    L.append("")
+def data_row(label, total, cost, cnt):
+    inner = rpad(trunc(label,L),L) + lpad(total,T) + lpad(cost,C) + lpad(cnt,N) + ' '
+    return '│' + inner + '│'
 
-period_row("⏱", "今日", gi, go, gq)
-period_row("📅", "本周", wi, wo, wq)
-period_row("🗓", "近30天", mi, mo, mq)
+def mid_divider(text):
+    pad = (IW - dw(text)) // 2
+    return '├' + '─'*pad + text + '─'*(IW - pad - dw(text)) + '┤'
 
-# ── 5. 各群组对比（近30天）────────────────────────────────────────
-GROUP_COLORS = ['🟦','🟧','🟩','🟥','🟨','🟪']
-month_total = max(mi+mo, 1)
+lines = []
+title = f" Token  {now.strftime('%m/%d  %H:%M')}"
+lines.append(border('┌','┐'))
+lines.append('│' + rpad(title, IW) + '│')
+lines.append(border())
+lines.append(data_row('', '总量', '费用', '次'))
+lines.append(border())
+lines.append(data_row('今日',   M(gi+go), f'${usd(gi,go):.2f}', str(gq)))
+lines.append(data_row('本周',   M(wi+wo), f'${usd(wi,wo):.2f}', str(wq)))
+lines.append(data_row('近30天', M(mi+mo), f'${usd(mi,mo):.2f}', str(mq)))
 
+# 输入输出占比（基于本周）
+ii = wi/max(wi+wo,1)*100
+oi = 100 - ii
+lines.append(mid_divider(f' 输入{ii:.0f}%  输出{oi:.0f}% '))
+
+# 群组明细（近30天，按消耗量倒序）
 try:
     all_registered = [g["name"] for g in
         json.load(open("/workspace/ipc/available_groups.json"))["groups"]
@@ -113,39 +124,15 @@ try:
 except:
     all_registered = []
 
-containers_with_data = list(data_month.keys())
-all_display = [display_name(c) for c in containers_with_data]
-extra = [g for g in all_registered if g not in all_display]
-
-group_data = []
-for idx, container in enumerate(containers_with_data):
-    ti, to, q = data_month[container]
+month_total = max(mi+mo, 1)
+group_rows = []
+for container, (ti, to, q) in sorted(data_month.items(), key=lambda x: -(x[1][0]+x[1][1])):
     pct = (ti+to)/month_total*100
-    group_data.append((display_name(container), GROUP_COLORS[idx%len(GROUP_COLORS)], ti, to, q, pct))
-for gname in extra:
-    group_data.append((gname, '⬛', 0, 0, 0, 0.0))
+    group_rows.append((display_name(container), M(ti+to), f'{pct:.0f}%', str(q)))
 
-BAR_W = 10
-active = [d for d in group_data if d[5] > 0]
-stacked = []
-if active:
-    slots = {i: max(1, round(d[5]/100*BAR_W)) for i,d in enumerate(active)}
-    diff = sum(slots.values()) - BAR_W
-    if diff != 0:
-        biggest = max(range(len(active)), key=lambda i: active[i][5])
-        slots[biggest] = max(1, slots[biggest]-diff)
-    for i,d in enumerate(active):
-        stacked.extend([d[1]]*slots[i])
-    while len(stacked) < BAR_W:
-        stacked.append('⬜')
+for row in group_rows:
+    lines.append(data_row(*row))
 
-L.append("━━━ 各群组（近30天）━━━━━━")
-L.append("".join(stacked))
-L.append("")
-for gname, color, ti, to, q, pct in group_data:
-    if q > 0:
-        L.append(f"{color} *{gname}*  {M(ti+to)}  {pct:.1f}%  ${usd(ti,to):.2f}  {q}次")
-    else:
-        L.append(f"⬛ {gname}  —")
+lines.append(border('└','┘'))
 
-print("\n".join(L))
+print("```\n" + "\n".join(lines) + "\n```")
