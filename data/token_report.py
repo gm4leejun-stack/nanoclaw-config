@@ -2,10 +2,14 @@ import json, os, sqlite3, unicodedata
 from datetime import datetime, timezone, timedelta
 
 tz_beijing = timezone(timedelta(hours=8))
-now = datetime.now(tz_beijing)
-today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-week_start  = today_start - timedelta(days=today_start.weekday())
-month_start = today_start - timedelta(days=29)
+tz_utc     = timezone.utc
+now = datetime.now(tz_utc)
+now_bj = now.astimezone(tz_beijing)
+today_start = now_bj.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(tz_utc)
+week_start  = (now_bj.replace(hour=0, minute=0, second=0, microsecond=0)
+               - timedelta(days=now_bj.weekday())).astimezone(tz_utc)
+month_start = (now_bj.replace(hour=0, minute=0, second=0, microsecond=0)
+               - timedelta(days=29)).astimezone(tz_utc)
 
 def dw(s): return sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 1 for c in s)
 def rpad(s, w): return s + ' ' * max(0, w - dw(s))
@@ -127,7 +131,7 @@ body.append(sep)
 body.append('🤖 各群组 近30天')
 body += fmt_rows(group_rows, pg_widths)
 
-print(f"📊 *Token 消耗报告*  {now.strftime('%m/%d %H:%M')} (UTC+8)\n")
+print(f"📊 *Token 消耗报告*  {now_bj.strftime('%m/%d %H:%M')} (北京时间)\n")
 print("```")
 print("\n".join(body))
 print("```")
