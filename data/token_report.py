@@ -7,12 +7,10 @@ today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 week_start  = today_start - timedelta(days=today_start.weekday())
 month_start = today_start - timedelta(days=29)
 
-# ── CJK-aware 工具 ─────────────────────────────────────────────────
-def dw(s):
-    return sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 1 for c in s)
-
-def rpad(s, w): return s + ' ' * max(0, w - dw(s))
-def lpad(s, w): return ' ' * max(0, w - dw(s)) + s
+# Telegram 代码块用拉丁等宽字体，每个字符（含CJK）渲染宽度=1，用 len() 对齐
+def dw(s): return len(s)
+def rpad(s, w): return s + ' ' * max(0, w - len(s))
+def lpad(s, w): return ' ' * max(0, w - len(s)) + s
 
 # ── 容器显示名映射 ─────────────────────────────────────────────────
 ALIASES_FILE = os.path.join(os.path.dirname(__file__), "container_aliases.json")
